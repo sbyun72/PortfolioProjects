@@ -1,0 +1,74 @@
+/*
+	Queries for Tableau dashboard #2 with Covid data on vaccinations and hospitalizations (2020-2021)
+  https://public.tableau.com/app/profile/sarah.b4052/viz/COVIDDashboardVaccinations2020-2021/Dashboard1
+*/
+
+-- Examine the data we will use
+
+SELECT *
+FROM PortfolioProject..CovidDeaths
+WHERE continent IS NOT NULL 
+ORDER BY 2,3,4
+
+SELECT *
+FROM PortfolioProject..CovidVaccinations
+ORDER BY 3,4
+
+
+-- VACCINATIONS
+
+-- 1. Global Numbers: total vaccinations, people fully vaccinated, percent of world fully vaccinated
+
+WITH CountryVaccination (continent, location, TotalVaccinations, TotalFullyVaccinated)
+AS (
+	SELECT continent, location, SUM(CAST(new_vaccinations AS bigint)) TotalVaccinations,
+	MAX(CAST(people_fully_vaccinated AS bigint)) TotalFullyVaccinated
+	FROM PortfolioProject..CovidVaccinations
+	WHERE continent IS NOT NULL
+	GROUP BY continent, location
+	)
+-- sum it all up for global numbers
+SELECT SUM(TotalVaccinations) TotalGlobalVaccinations,
+	SUM(TotalFullyVaccinated) GlobalFullyVaccinated,
+	(SUM(TotalFullyVaccinated)/SUM(cd.population))*100 GlobalPercentVaccinated
+FROM CountryVaccination cnv
+JOIN PortfolioProject..CovidDeaths cd
+	ON cnv.location = cd.location
+WHERE cnv.continent IS NOT NULL;
+
+
+-- 2. Percent Vaccination by Country
+
+SELECT continent, location, MAX(CAST(people_vaccinated_per_hundred as numeric)) AS PercentVaccinated,
+	MAX(CAST(people_fully_vaccinated_per_hundred as numeric)) AS PercentFullyVaccinated
+FROM PortfolioProject..CovidVaccinations
+WHERE continent IS NOT NULL
+GROUP BY continent, location
+ORDER BY PercentVaccinated DESC;
+
+-- 3. Examine total vaccination count by country for trends with GDP per capita
+-- and population density. 
+
+SELECT continent, location, gdp_per_capita, population_density, 
+	MAX(CAST(total_vaccinations as bigint)) TotalVaccinations
+FROM PortfolioProject..CovidVaccinations
+WHERE continent IS NOT NULL 
+--AND total_vaccinations IS NOT NULL
+GROUP BY continent, location, gdp_per_capita, population_density
+ORDER BY TotalVaccinations DESC;
+
+SELECT *
+FROM PortfolioProject..CovidVaccinations
+
+
+
+-- HOSPITALIZATIONS
+
+-- 4. New Weekly Hospital Admissions over time
+
+SELECT continent, location, date,
+	CAST(weekly_hosp_admissions as numeric) as HospitalAdmissions
+FROM PortfolioProject..CovidDeaths
+WHERE continent IS NOT NULL AND weekly_hosp_admissions IS NOT NULL
+GROUP BY continent, location, date, weekly_hosp_admissions
+ORDER BY continent, location, date;
